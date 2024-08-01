@@ -117,6 +117,10 @@ public class MainUI implements EventHandler<javafx.scene.input.MouseEvent> {
 
   private Button[] problemStatusButtons;
 
+  private Button[] modeButtons;
+
+  private Button[] entryTypeButtons;
+
   private Label folderInfoLastOpened;
 
   private Label folderInfoNumberOfProblems;
@@ -128,6 +132,10 @@ public class MainUI implements EventHandler<javafx.scene.input.MouseEvent> {
 
   private Label statusBarLabel;
 
+  private boolean matchMoves = false;
+  private boolean entryTypeMoves = true;
+  private boolean showSortButtons = false;
+
   public MainUI(SGF4JApp app) {
     this.app = app;
 
@@ -137,7 +145,7 @@ public class MainUI implements EventHandler<javafx.scene.input.MouseEvent> {
     virtualBoard.addBoardListener(new GuiBoardListener(this));
   }
 
-  public Pane buildUI() throws Exception {
+  public Pane buildUI(String game) throws Exception {
     /*
      * -------------------------- | | | | | left | center | right | | | | |
      * --------------------------
@@ -154,7 +162,7 @@ public class MainUI implements EventHandler<javafx.scene.input.MouseEvent> {
     rightVBox.setPadding(paneInsets);
 
     // constructing the left box
-    VBox fileTreePane = generateFileTreePane();
+    VBox fileTreePane = generateFileTreePane(game);
     leftVBox.setMaxWidth(450);
     leftVBox.getChildren().addAll(fileTreePane);
     VBox.setVgrow(fileTreePane, Priority.ALWAYS);
@@ -183,12 +191,14 @@ public class MainUI implements EventHandler<javafx.scene.input.MouseEvent> {
     VBox.setVgrow(buttonPane, Priority.NEVER);
     HBox.setHgrow(buttonPane, Priority.ALWAYS);
 
-    // constructing the right box
+    VBox functionInfo = generateFunctionalInfoPane();
+
+      // constructing the right box
     VBox gameMetaInfo = generateGameMetaInfoPane();
     TextArea commentArea = generateCommentPane();
     TitledPane tPane = new TitledPane("Comment Area", commentArea);
 
-    rightVBox.getChildren().addAll(gameMetaInfo, tPane);
+    rightVBox.getChildren().addAll(functionInfo, gameMetaInfo, tPane);
     rightVBox.setMaxWidth(450);
     VBox.setVgrow(commentArea, Priority.ALWAYS);
 
@@ -309,13 +319,79 @@ public class MainUI implements EventHandler<javafx.scene.input.MouseEvent> {
     this.statusBarLabel.setText(update);
   }
 
-  public void initGame() {
-    String game = "src/main/resources/game.sgf";
+  public void initGame(String game) {
     Path path = Paths.get(game);
     // in development it is nice to have a game open on start
     if (path.toFile().exists()) {
       initializeGame(Paths.get(game));
     }
+  }
+
+  private VBox generateFunctionalInfoPane() {
+    VBox vbox = new VBox();
+
+    vbox.setMinWidth(250);
+    GridPane pane = new GridPane();
+
+    TitledPane tPane = new TitledPane("Problem Information", pane);
+    vbox.getChildren().add(tPane);
+
+    Label label = new Label("Mode");
+    label.getStyleClass().add("title-label");
+
+    GridPane.setHalignment(label, HPos.CENTER);
+    GridPane.setColumnSpan(label, 2);
+    GridPane.setConstraints(label, 1, 1);
+    pane.getChildren().addAll(label);
+
+    HBox hbox = new HBox();
+    modeButtons = new Button[] { new Button("Guess"), new Button("Input") };
+    for (int i = 0; i < modeButtons.length; i++) {
+      Button btn = modeButtons[i];
+      hbox.getChildren().add(btn);
+      int finalI = i;
+      btn.setOnAction(e -> {
+        updateInterfaceState(finalI);
+
+        // trigger the event to update the icon
+        TreeItem<File> selectedItem = fileTreeView.getSelectionModel().getSelectedItem();
+        Event.fireEvent(selectedItem,
+                new TreeModificationEvent<File>(TreeItem.<File>valueChangedEvent(), selectedItem, selectedItem.getValue()));
+      });
+    }
+
+    GridPane.setConstraints(hbox, 1, 2);
+    GridPane.setColumnSpan(hbox, 2);
+    pane.getChildren().addAll(hbox);
+
+    label = new Label("Entry Type");
+    label.getStyleClass().add("title-label");
+
+    GridPane.setHalignment(label, HPos.CENTER);
+    GridPane.setColumnSpan(label, 2);
+    GridPane.setConstraints(label, 1, 3);
+    pane.getChildren().addAll(label);
+    hbox = new HBox();
+    entryTypeButtons = new Button[] { new Button("Moves"), new Button("Letters") };
+    for (int i = 0; i < entryTypeButtons.length; i++) {
+      Button btn = entryTypeButtons[i];
+      hbox.getChildren().add(btn);
+      int finalI = i;
+      btn.setOnAction(e -> {
+        updateEntryType(finalI);
+
+        // trigger the event to update the icon
+        TreeItem<File> selectedItem = fileTreeView.getSelectionModel().getSelectedItem();
+        Event.fireEvent(selectedItem,
+                new TreeModificationEvent<File>(TreeItem.<File>valueChangedEvent(), selectedItem, selectedItem.getValue()));
+      });
+    }
+
+    GridPane.setConstraints(hbox, 1, 4);
+    GridPane.setColumnSpan(hbox, 4);
+    pane.getChildren().addAll(hbox);
+
+    return vbox;
   }
 
   private VBox generateGameMetaInfoPane() {
@@ -374,34 +450,36 @@ public class MainUI implements EventHandler<javafx.scene.input.MouseEvent> {
     // pane.add(label, 1, 4);
 
     HBox hbox = new HBox();
-    Button[] sortButtons = new Button[] { new Button("Name"), new Button("Difficulty") };
-    for (int i = 0; i < sortButtons.length; i++) {
-      Button btn = sortButtons[i];
-      if (i == 0) {
-        btn.getStyleClass().add("btn-selected");
-      }
-      hbox.getChildren().add(btn);
-      btn.setOnAction(e -> {
-        // MainUI.this.game.updateFileStatus(btn.getText());
-        // resetProblemStatusButtonStyles();
-        for (int j = 0; j < sortButtons.length; j++) {
-          sortButtons[j].getStyleClass().remove("btn-selected");
+    if (showSortButtons) {
+      Button[] sortButtons = new Button[]{new Button("Name"), new Button("Difficulty")};
+      for (int i = 0; i < sortButtons.length; i++) {
+        Button btn = sortButtons[i];
+        if (i == 0) {
+          btn.getStyleClass().add("btn-selected");
         }
-        btn.getStyleClass().add("btn-selected");
-        // updateMetaInfoForGame(game);
+        hbox.getChildren().add(btn);
+        btn.setOnAction(e -> {
+          // MainUI.this.game.updateFileStatus(btn.getText());
+          // resetProblemStatusButtonStyles();
+          for (int j = 0; j < sortButtons.length; j++) {
+            sortButtons[j].getStyleClass().remove("btn-selected");
+          }
+          btn.getStyleClass().add("btn-selected");
+          // updateMetaInfoForGame(game);
 
-        // trigger the event to update the icon
-        // TreeItem<File> selectedItem =
-        // fileTreeView.getSelectionModel().getSelectedItem();
-        // Event.fireEvent(selectedItem, new
-        // TreeModificationEvent<File>(TreeItem.<File>valueChangedEvent(), selectedItem,
-        // selectedItem.getValue()));
-      });
+          // trigger the event to update the icon
+          // TreeItem<File> selectedItem =
+          // fileTreeView.getSelectionModel().getSelectedItem();
+          // Event.fireEvent(selectedItem, new
+          // TreeModificationEvent<File>(TreeItem.<File>valueChangedEvent(), selectedItem,
+          // selectedItem.getValue()));
+        });
+      }
     }
 
     GridPane.setColumnSpan(hbox, 2);
     GridPane.setHalignment(hbox, HPos.CENTER);
-    // pane.add(hbox, 0, 5);
+     pane.add(hbox, 0, 5);
 
     tPane = new TitledPane("Folder information", pane);
     vbox.getChildren().add(tPane);
@@ -517,6 +595,8 @@ public class MainUI implements EventHandler<javafx.scene.input.MouseEvent> {
     showMarkersForMove(game.getRootNode());
     showCommentForMove(game.getRootNode());
 
+    updateInterfaceState(0);
+    updateEntryType(0);
     updateMetaInfoForGame(this.game);
     // only now update the file opened, not to mess up the meta information
     this.game.updateFileOpened();
@@ -526,6 +606,42 @@ public class MainUI implements EventHandler<javafx.scene.input.MouseEvent> {
 
     moveNoField.setText("0");
     nextButton.requestFocus();
+  }
+
+  private void updateInterfaceState(int buttonNumber) {
+    if (buttonNumber == 0) {
+      matchMoves = true;
+    } else  {
+      matchMoves = false;
+    }
+
+    for (int i = 0; i < modeButtons.length; i++) {
+      modeButtons[i].getStyleClass().removeAll("btn-selected");
+    }
+//    System.err.println(matchMoves);
+    if (matchMoves) {
+      modeButtons[0].getStyleClass().add("btn-selected");
+    } else {
+      modeButtons[1].getStyleClass().add("btn-selected");
+    }
+  }
+
+  private void updateEntryType(int buttonNumber) {
+    if (buttonNumber == 0) {
+      entryTypeMoves = true;
+    } else  {
+      entryTypeMoves = false;
+    }
+
+    for (int i = 0; i < entryTypeButtons.length; i++) {
+      entryTypeButtons[i].getStyleClass().removeAll("btn-selected");
+    }
+//    System.err.println(entryTypeMoves);
+    if (entryTypeMoves) {
+      entryTypeButtons[0].getStyleClass().add("btn-selected");
+    } else {
+      entryTypeButtons[1].getStyleClass().add("btn-selected");
+    }
   }
 
   private void updateMetaInfoForGame(MyGame game) {
@@ -794,11 +910,16 @@ public class MainUI implements EventHandler<javafx.scene.input.MouseEvent> {
     }
   }
 
-  private VBox generateFileTreePane() {
+  private VBox generateFileTreePane(String initialFile) {
     VBox vbox = new VBox();
     vbox.setMinWidth(250);
 
-    fileTreeView = new FileTreeView();
+    Path directory = Paths.get(".");
+    if (initialFile != "") {
+      Path path = Paths.get(initialFile);
+      directory = path.getParent();
+    }
+    fileTreeView = new FileTreeView(directory.toString());
     fileTreeView.setFocusTraversable(false);
 
     Label label = new Label("Choose SGF File");
@@ -1212,56 +1333,93 @@ public class MainUI implements EventHandler<javafx.scene.input.MouseEvent> {
   public void handle(MouseEvent event) {
     BoardSquare sq = (BoardSquare) event.getSource();
     if (sq.getState().isEmpty()) {
-      String colorToPlay = "B";
-      if (this.currentMove.isBlack()) {
-        colorToPlay = "W";
-      } else if (this.currentMove.isWhite()) {
-        colorToPlay = "B";
-      } else if (currentMove.getProperty("PL") != null) {
-        colorToPlay = currentMove.getProperty("PL");
-      } else if (game.getProperty("PL") != null) {
-        colorToPlay = game.getProperty("PL");
-      }
-
-      // create move node
-      int x = sq.getX() - 1;
-      int y = sq.getY() - 1;
-      GameNode move = null;
-
-      if (currentMove.getNextNode() != null && currentMove.getNextNode().getMoveString() != null
-          && currentMove.getNextNode().getCoords()[0] == x && currentMove.getNextNode().getCoords()[1] == y
-          && currentMove.getNextNode().getColor().equals(colorToPlay)) {
-        move = currentMove.getNextNode();
-      }
-
-      for (Iterator<GameNode> ite = currentMove.getChildren().iterator(); ite.hasNext();) {
-        GameNode tmpNode = ite.next();
-        if (tmpNode.getCoords()[0] == x && tmpNode.getCoords()[1] == y && tmpNode.getColor().equals(colorToPlay)
-            && tmpNode.getColor().equals(colorToPlay)) {
-          move = tmpNode;
-          break;
-        }
-      }
-
-      if (move == null) {
-        move = new GameNode(this.currentMove);
-        String coord = Util.coordToAlpha.get(x);
-        coord += Util.coordToAlpha.get(y);
-        move.addProperty(colorToPlay, coord);
-
-        if (this.currentMove.getNextNode() != null) {
-          this.currentMove.addChild(move);
-        } else {
-          this.currentMove.setNextNode(move);
-          move.setPrevNode(this.currentMove);
+      if (entryTypeMoves) {
+        String colorToPlay = "B";
+        if (this.currentMove.isBlack()) {
+          colorToPlay = "W";
+        } else if (this.currentMove.isWhite()) {
+          colorToPlay = "B";
+        } else if (currentMove.getProperty("PL") != null) {
+          colorToPlay = currentMove.getProperty("PL");
+        } else if (game.getProperty("PL") != null) {
+          colorToPlay = game.getProperty("PL");
         }
 
-        game.getGame().postProcess();
-        reinitMoveTreePane();
-      }
+        // create move node
+        int x = sq.getX() - 1;
+        int y = sq.getY() - 1;
+        GameNode move = null;
 
-      // play on the board
-      virtualBoard.makeMove(move, this.currentMove);
+        if (currentMove != null && currentMove.getNextNode() != null && currentMove.getNextNode().getMoveString() != null
+                && currentMove.getNextNode().getCoords()[0] == x && currentMove.getNextNode().getCoords()[1] == y
+                && currentMove.getNextNode().getColor().equals(colorToPlay)) {
+          move = currentMove.getNextNode();
+        }
+
+        for (Iterator<GameNode> ite = currentMove.getChildren().iterator(); ite.hasNext(); ) {
+          GameNode tmpNode = ite.next();
+          if (tmpNode.getCoords()[0] == x && tmpNode.getCoords()[1] == y && tmpNode.getColor().equals(colorToPlay)
+                  && tmpNode.getColor().equals(colorToPlay)) {
+            move = tmpNode;
+            break;
+          }
+        }
+
+        if (!matchMoves && move == null) {
+          move = new GameNode(this.currentMove);
+          String coord = Util.coordToAlpha.get(x);
+          coord += Util.coordToAlpha.get(y);
+          move.addProperty(colorToPlay, coord);
+
+          if (this.currentMove.getNextNode() != null) {
+            this.currentMove.addChild(move);
+          } else {
+            this.currentMove.setNextNode(move);
+            move.setPrevNode(this.currentMove);
+          }
+
+          game.getGame().postProcess();
+          reinitMoveTreePane();
+        }
+
+        if (move != null || !matchMoves) {
+          // play on the board
+          virtualBoard.makeMove(move, this.currentMove);
+        }
+      } else {
+        int x = sq.getX() - 1;
+        int y = sq.getY() - 1;
+
+        // also handle the LB labels
+        String lbProperties = currentMove.getProperty("LB");
+        Map<String, String> labels = Util.extractLabels(lbProperties);
+
+        String nextLetter = "A";
+        String newLabels = "";
+        if (!labels.isEmpty()) {
+          for (Iterator<Map.Entry<String, String>> ite = labels.entrySet().iterator(); ite.hasNext(); ) {
+            Map.Entry<String, String> entry = ite.next();
+            int[] coords = Util.alphaToCoords(entry.getKey());
+            if (newLabels != "") {
+              newLabels += "][";
+            }
+            newLabels += entry.getKey() + ":" + entry.getValue();
+            if (entry.getValue().compareTo(nextLetter) >= 0) {
+              int charValue = entry.getValue().charAt(0);
+              nextLetter = String.valueOf((char) (charValue + 1));
+            }
+//              board[coords[0]][coords[1]].addOverlayText(entry.getValue());
+          }
+        }
+        if (newLabels != "") {
+          newLabels += "][";
+        }
+        newLabels += Util.coodToAlpha(x, y) + ":" + nextLetter;
+        currentMove.addProperty("LB", newLabels);
+        String lbAfterProperties = currentMove.getProperty("LB");
+        Map<String, String> afterlabels = Util.extractLabels(lbAfterProperties);
+        board[x][y].addOverlayText(nextLetter);
+      }
     }
   }
 }

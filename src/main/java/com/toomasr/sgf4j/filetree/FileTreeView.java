@@ -26,7 +26,7 @@ public class FileTreeView extends TreeView<File> {
   private Thread fileChangesWatcherThread;
   private Set<FileFormatCell> fileFormatCells = new HashSet<>();
 
-  public FileTreeView() {
+  public FileTreeView(String homePath) {
     super();
 
     getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
@@ -51,7 +51,7 @@ public class FileTreeView extends TreeView<File> {
 
     fakeRoot.getChildren().addAll(treeItems);
 
-    openTreeAtRightLocation(fakeRoot);
+    openTreeAtRightLocation(fakeRoot, homePath);
 
     addEventHandler(KeyEvent.KEY_PRESSED, new EventHandler<KeyEvent>() {
 
@@ -68,8 +68,9 @@ public class FileTreeView extends TreeView<File> {
    *
    * @param fakeRoot the root of the TreeView
    */
-  private void openTreeAtRightLocation(final TreeItem<File> fakeRoot) {
-    File rightLocation = Sgf4jGuiUtil.getAppHomeFolder();
+  private void openTreeAtRightLocation(final TreeItem<File> fakeRoot, String homePath) {
+    File rightLocation = homePath == null ?   Sgf4jGuiUtil.getAppHomeFolder() : Sgf4jGuiUtil.getFolderFromString(homePath);
+
     String fileToOpen = AppState.getInstance().getProperty(AppState.CURRENT_FILE);
     if (fileToOpen != null) {
       File tmpFile = new File(fileToOpen);
@@ -85,6 +86,7 @@ public class FileTreeView extends TreeView<File> {
     scrollTo(getSelectionModel().getSelectedIndex());
   }
 
+  // Currently only supports 'C' Drive on Windows
   private FileTreeItem findMatchingTreeItemFromView(List<TreeItem<File>> root, final File homeFolder) {
     List<String> pathElems = tokenizePath(homeFolder);
     TreeItem<File> rtrn = null;
