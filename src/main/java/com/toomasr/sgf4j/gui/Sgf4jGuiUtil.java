@@ -29,4 +29,16 @@ public class Sgf4jGuiUtil {
     }
     return appHomeFolder;
   }
+
+  public static File getFolderFromString(String inputFolder) {
+    File appFolder = new File(inputFolder, ".sgf4j-gui");
+    if (!appFolder.exists()) {
+
+      boolean flag = appFolder.mkdir();
+      if (!flag) {
+        throw new RuntimeException("Unable to create app home folder " + appFolder.getAbsolutePath());
+      }
+    }
+    return appFolder;
+  }
 }

@@ -4,6 +4,8 @@ import java.awt.Taskbar;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.jar.Attributes;
@@ -11,6 +13,7 @@ import java.util.jar.Manifest;
 
 import javax.swing.ImageIcon;
 
+import javafx.scene.Parent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +47,13 @@ public class SGF4JApp extends Application {
       // fine to ignore
     }
 
+    String game = "src/main/resources/game.sgf";
+
+    if (getParameters().getRaw().size() == 1) {
+      game = getParameters().getRaw().get(0);
+    }
+
+
     String verInfo = extractVersionFromManifest();
     primaryStage.setTitle("SGF4J - " + verInfo);
     System.out.println("Build information: " + verInfo);
@@ -71,8 +81,8 @@ public class SGF4JApp extends Application {
     // end of Dock icon
 
     MainUI mainUIBuilder = new MainUI(this);
-    Pane mainUI = mainUIBuilder.buildUI();
-    mainUIBuilder.initGame();
+    Pane mainUI = mainUIBuilder.buildUI(game);
+    mainUIBuilder.initGame(game);
 
     this.scene = new Scene(mainUI);
     scene.getStylesheets().add("/styles.css");
@@ -160,11 +170,11 @@ public class SGF4JApp extends Application {
     MainUI mainUIBuilder = new MainUI(this);
     Pane mainUI;
     try {
-      mainUI = mainUIBuilder.buildUI();
+      mainUI = mainUIBuilder.buildUI("");
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-    mainUIBuilder.initGame();
+    mainUIBuilder.initGame("");
     this.scene.setRoot(mainUI);
   }
 
